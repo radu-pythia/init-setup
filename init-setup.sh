@@ -17,5 +17,6 @@ sed -i 's/plugins=(git)/plugins=(git zsh-autosuggestions)/' ~/.zshrc
 echo "eval \"\$(starship init zsh)\"" >> ~/.zshrc
 source ~/.zshrc
 echo "Downloading starship config file..."
-wget -N -p ~/.config/ -O starship.toml https://raw.githubusercontent.com/radu-pythia/init-setup/main/starship.toml
+wget -N https://raw.githubusercontent.com/radu-pythia/init-setup/main/starship.toml
+mv starship.toml ~/.config/starship.toml
 echo "Hopefully done!"
