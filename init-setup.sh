@@ -1,5 +1,5 @@
 #! /bin/bash
-sudo apt-get install git zsh curl wget unzip
+sudo apt-get install git zsh curl wget unzip fontconfig
 echo "Installing oh-my-zsh..."
 sh -c "$(curl -fsSL https://raw.github.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 echo "Installing starship..."
