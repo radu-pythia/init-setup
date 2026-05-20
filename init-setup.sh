@@ -182,6 +182,140 @@ install_starship_config() {
   log "Starship config installed to ~/.config/starship.toml"
 }
 
+cosmic_desktop() {
+  local de="${XDG_CURRENT_DESKTOP:-}"
+  de="${de,,}"
+  case "${de}" in
+    *cosmic*) return 0 ;;
+  esac
+  local session="${XDG_SESSION_DESKTOP:-}"
+  session="${session,,}"
+  case "${session}" in
+    *cosmic*) return 0 ;;
+  esac
+  if command -v cosmic-term >/dev/null 2>&1 && [[ -d "${HOME}/.config/cosmic" ]]; then
+    return 0
+  fi
+  return 1
+}
+
+configure_cosmic_term() {
+  if ! cosmic_desktop; then
+    return 0
+  fi
+
+  local zsh_path
+  zsh_path="$(command -v zsh)"
+
+  log "COSMIC desktop detected; configuring cosmic-term default profile for zsh..."
+
+  if command -v python3 >/dev/null 2>&1; then
+    ZSH_PATH="${zsh_path}" python3 <<'PY'
+import os
+import re
+from pathlib import Path
+
+zsh = os.environ["ZSH_PATH"]
+config_dir = Path.home() / ".config/cosmic/com.system76.CosmicTerm/v1"
+config_dir.mkdir(parents=True, exist_ok=True)
+profiles_path = config_dir / "profiles"
+default_path = config_dir / "default_profile"
+
+def profile_block(pid: int) -> str:
+    return f"""{{
+    {pid}: (
+        name: "zsh",
+        command: "{zsh}",
+        syntax_theme_dark: "COSMIC Dark",
+        syntax_theme_light: "COSMIC Light",
+        tab_title: "",
+        working_directory: "~",
+        drain_on_exit: false,
+    ),
+}}"""
+
+def default_profile_id() -> int:
+    if not default_path.exists():
+        return 0
+    m = re.search(r"Some\((\d+)\)", default_path.read_text())
+    return int(m.group(1)) if m else 0
+
+def profile_ids(content: str) -> list[int]:
+    return [int(m.group(1)) for m in re.finditer(r"^\s*(\d+):\s*\(", content, re.M)]
+
+def set_profile_command(content: str, pid: int) -> tuple[str, bool]:
+    pattern = rf'(\s*{pid}:\s*\(\s*\n(?:.*\n)*?\s*command:\s*)("(?:[^"\\]|\\.)*"|[^,\n]+)(\s*,)'
+    new, n = re.subn(pattern, rf'\1"{zsh}"\3', content, count=1)
+    return new, n > 0
+
+def insert_profile(content: str, pid: int) -> str:
+    block_inner = profile_block(pid).strip()[1:-1].strip()  # drop outer { }
+    content = content.rstrip()
+    if content.endswith("}"):
+        inner = content[:-1].rstrip()
+        if inner.endswith(","):
+            inner = inner[:-1].rstrip()
+        if inner.endswith("{"):
+            return f"{{\n    {block_inner},\n}}\n"
+        return f"{inner},\n    {block_inner},\n}}\n"
+    return profile_block(pid)
+
+if not profiles_path.exists():
+    profiles_path.write_text(profile_block(0))
+    default_path.write_text("Some(0)\n")
+else:
+    content = profiles_path.read_text()
+    pid = default_profile_id()
+    if pid not in profile_ids(content):
+        pid = max(profile_ids(content), default=-1) + 1
+        content = insert_profile(content, pid)
+    else:
+        updated, ok = set_profile_command(content, pid)
+        if ok:
+            content = updated
+        else:
+            pid = max(profile_ids(content), default=-1) + 1
+            content = insert_profile(content, pid)
+    default_path.write_text(f"Some({pid})\n")
+    profiles_path.write_text(content)
+PY
+    log "cosmic-term profile updated (command: ${zsh_path})"
+    return 0
+  fi
+
+  # Fallback without python3: only safe for a single-profile file
+  local config_dir="${HOME}/.config/cosmic/com.system76.CosmicTerm/v1"
+  mkdir -p "${config_dir}"
+  if [[ ! -f "${config_dir}/profiles" ]]; then
+    cat >"${config_dir}/profiles" <<EOF
+{
+    0: (
+        name: "zsh",
+        command: "${zsh_path}",
+        syntax_theme_dark: "COSMIC Dark",
+        syntax_theme_light: "COSMIC Light",
+        tab_title: "",
+        working_directory: "~",
+        drain_on_exit: false,
+    ),
+}
+EOF
+    echo 'Some(0)' >"${config_dir}/default_profile"
+    log "cosmic-term profile created (command: ${zsh_path})"
+    return 0
+  fi
+
+  if grep -cE '^[[:space:]]*[0-9]+:[[:space:]]*\(' "${config_dir}/profiles" | grep -qx 1; then
+    sed -i "s/^[[:space:]]*command: .*/        command: \"${zsh_path}\",/" "${config_dir}/profiles"
+    echo 'Some(0)' >"${config_dir}/default_profile"
+    log "cosmic-term profile updated via sed (command: ${zsh_path})"
+    return 0
+  fi
+
+  log "Warning: could not configure cosmic-term automatically (install python3 or set Profiles > default shell to zsh)"
+  return 0
+}
+
 maybe_set_default_shell() {
   if [[ "${SHELL:-}" == *zsh* ]]; then
     return
@@ -208,6 +342,9 @@ print_done() {
   if [[ "${SHELL:-}" != *zsh* ]]; then
     log "3. To use zsh as default: chsh -s $(command -v zsh)"
   fi
+  if cosmic_desktop; then
+    log "COSMIC: cosmic-term default profile is set to zsh (open a new cosmic-term tab to apply)"
+  fi
 }
 
 main() {
@@ -223,6 +360,7 @@ main() {
   configure_zshrc
   install_starship_config
   maybe_set_default_shell
+  configure_cosmic_term
   print_done
 }
 

@@ -33,3 +33,5 @@ The script is idempotent: safe to run again. Existing installs are skipped; `.zs
 1. Set your terminal font to **FiraCode Nerd Font**
 2. Open a new terminal or run `exec zsh`
 3. Optionally set zsh as your default shell: `chsh -s "$(which zsh)"` (the script prompts when run interactively)
+
+On **COSMIC** (Pop!\_OS 24.04+), the script also sets the **cosmic-term** default profile to zsh in `~/.config/cosmic/com.system76.CosmicTerm/v1/` (cosmic-term may ignore `chsh` until you open a new tab).
