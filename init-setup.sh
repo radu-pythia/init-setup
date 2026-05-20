@@ -4,9 +4,51 @@ set -euo pipefail
 STARSHIP_CONFIG_URL="https://raw.githubusercontent.com/radu-pythia/init-setup/main/starship.toml"
 FONT_URL="https://github.com/ryanoasis/nerd-fonts/releases/download/v2.1.0/FiraCode.zip"
 INIT_SETUP_MARKER="init-setup"
+OS_ID=""
 
 log() {
   printf '[init-setup] %s\n' "$*"
+}
+
+ubuntu_like() {
+  [[ "${OS_ID}" == ubuntu || "${OS_ID}" == pop ]]
+}
+
+universe_enabled() {
+  local f
+  for f in /etc/apt/sources.list /etc/apt/sources.list.d/*; do
+    [[ -f "${f}" ]] || continue
+    if grep -qE '^[^#[:space:]].*\buniverse\b' "${f}" 2>/dev/null; then
+      return 0
+    fi
+    if grep -qE '^Components:.*\buniverse\b' "${f}" 2>/dev/null; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+ensure_universe() {
+  if ! ubuntu_like; then
+    return 0
+  fi
+
+  if universe_enabled; then
+    log "Universe repository is enabled"
+    return 0
+  fi
+
+  log "Universe repository is not enabled (required for nala)"
+  log "Enabling universe..."
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y software-properties-common
+  sudo add-apt-repository -y universe
+  sudo apt-get update -qq
+
+  if ! universe_enabled; then
+    log "Error: failed to enable universe. Try: sudo add-apt-repository universe"
+    exit 1
+  fi
+  log "Universe repository enabled"
 }
 
 check_os() {
@@ -17,10 +59,11 @@ check_os() {
   if [[ -f /etc/os-release ]]; then
     # shellcheck source=/dev/null
     source /etc/os-release
-    case "${ID:-}" in
+    OS_ID="${ID:-}"
+    case "${OS_ID}" in
       ubuntu | debian | pop) ;;
       *)
-        log "Warning: unsupported distro '${ID:-unknown}'. Continuing anyway (apt-get found)."
+        log "Warning: unsupported distro '${OS_ID:-unknown}'. Continuing anyway (apt-get found)."
         ;;
     esac
   fi
@@ -40,7 +83,8 @@ font_installed() {
 install_packages() {
   log "Installing packages..."
   sudo apt-get update -qq
-  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git zsh curl wget unzip fontconfig
+  ensure_universe
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git zsh curl wget unzip fontconfig nala
 }
 
 install_oh_my_zsh() {

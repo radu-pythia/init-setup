@@ -16,7 +16,7 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/radu-pythia/init-setup/mai
 
 ## What it installs
 
-- System packages: `git`, `zsh`, `curl`, `wget`, `unzip`, `fontconfig`
+- System packages: `git`, `zsh`, `curl`, `wget`, `unzip`, `fontconfig`, `nala` (on Ubuntu/Pop, enables the **universe** repo if needed)
 - [Oh My Zsh](https://ohmyz.sh/)
 - [Starship](https://starship.rs/) prompt
 - [FiraCode Nerd Font](https://github.com/ryanoasis/nerd-fonts) (v2.1.0)
