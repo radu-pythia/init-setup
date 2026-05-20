@@ -1,4 +1,17 @@
 #!/usr/bin/env bash
+# dash/sh (e.g. "sh -c \"$(curl ...)\"") lacks pipefail and other bash features.
+if [ -z "${BASH_VERSION:-}" ]; then
+  case "$0" in
+    *init-setup*)
+      if [ -f "$0" ] && command -v bash >/dev/null 2>&1; then
+        exec bash "$0" "$@"
+      fi
+      ;;
+  esac
+  printf '%s\n' '[init-setup] Error: bash is required (this was run with sh/dash).' >&2
+  printf '%s\n' '[init-setup] Use: bash -c "$(curl -fsSL https://raw.githubusercontent.com/radu-pythia/init-setup/main/init-setup.sh)"' >&2
+  exit 1
+fi
 set -euo pipefail
 
 STARSHIP_CONFIG_URL="https://raw.githubusercontent.com/radu-pythia/init-setup/main/starship.toml"

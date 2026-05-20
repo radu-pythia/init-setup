@@ -5,12 +5,13 @@ Bootstrap a zsh dev shell on Debian/Ubuntu: Oh My Zsh, Starship, FiraCode Nerd F
 ## Install
 
 ```bash
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/radu-pythia/init-setup/main/init-setup.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/radu-pythia/init-setup/main/init-setup.sh)"
 ```
 
 ## Requirements
 
 - Ubuntu, Debian, or Pop!\_OS (other distros with `apt-get` may work but are untested)
+- `bash` (not `sh`/`dash` — the script uses bash-only options)
 - `sudo` access
 - Network access
 
